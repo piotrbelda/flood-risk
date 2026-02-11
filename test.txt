@@ -1,0 +1,219 @@
+Świetne pytanie — skoro masz już .shp z mapą zagrożenia 10% / 1% / 0,2% jako etykietę (target), to budujesz model typu spatial classification / susceptibility model.
+
+Kluczowe jest dobranie zmiennych objaśniających (predictors), które fizycznie wpływają na rozkład zalewu.
+
+Poniżej masz najważniejsze ogólnodostępne dane w Polsce (i EU) + dlaczego są istotne.
+
+1️⃣ Numeryczny Model Terenu (absolutna podstawa)
+🔹 Co pobrać:
+
+NMT 1 m / 5 m (ISOK – GUGiK)
+
+ewentualnie EU-DEM (jeśli model na dużą skalę)
+
+🔹 Z NMT wyliczysz:
+
+wysokość bezwzględną
+
+wysokość względną nad rzeką
+
+spadek (slope)
+
+krzywiznę terenu
+
+TWI (Topographic Wetness Index)
+
+flow accumulation
+
+distance to river (z warstwy hydrografii)
+
+👉 W modelach powodziowych topografia odpowiada za 60–80% jakości predykcji.
+
+2️⃣ Hydrografia
+🔹 Źródła:
+
+BDOT10k
+
+MPHP (Mapa Podziału Hydrograficznego Polski)
+
+OpenStreetMap (pomocniczo)
+
+🔹 Zmiennie:
+
+odległość od cieku
+
+rząd cieku (Strahler order)
+
+gęstość sieci rzecznej
+
+przynależność do zlewni
+
+3️⃣ Dane hydrologiczne (IMGW – częściowo otwarte)
+
+Jeśli model ma być bardziej fizyczny:
+
+przepływy charakterystyczne (Q10, Q50, Q100)
+
+stany wód
+
+maksima roczne
+
+dane opadowe
+
+Możesz też użyć:
+
+ERA5 (Copernicus) – dane opadowe i klimatyczne (globalne, darmowe)
+
+4️⃣ Pokrycie terenu / użytkowanie
+🔹 Źródła:
+
+Corine Land Cover
+
+BDOT10k
+
+Copernicus Land Monitoring
+
+🔹 Dlaczego ważne:
+
+tereny uszczelnione → szybki spływ
+
+lasy → retencja
+
+łąki i pola → różna infiltracja
+
+Możesz zakodować jako:
+
+kategorie (one-hot)
+
+współczynnik retencji / roughness
+
+5️⃣ Gleby i przepuszczalność
+🔹 Źródła:
+
+IUNG – mapa gleb
+
+European Soil Data Centre (ESDAC)
+
+🔹 Parametry:
+
+typ gleby
+
+przepuszczalność
+
+pojemność wodna
+
+6️⃣ Geologia
+
+Państwowy Instytut Geologiczny (PIG)
+
+litologia
+
+utwory aluwialne (bardzo silny predyktor zalewów)
+
+7️⃣ Dane klimatyczne
+
+średnie opady roczne
+
+maksymalne dobowe opady
+
+indeksy ekstremalne (ERA5)
+
+8️⃣ Dane antropogeniczne
+
+wały przeciwpowodziowe (BDOT10k)
+
+zbiorniki retencyjne
+
+mosty (zwężenia hydrauliczne)
+
+zabudowa (stopień uszczelnienia)
+
+9️⃣ Dane satelitarne
+
+Jeśli chcesz model ML na rastrach:
+
+Sentinel-2 (NDVI)
+
+Sentinel-1 (radar – wilgotność)
+
+Global Surface Water (JRC – historyczne zalewy)
+
+🔟 Bardzo silne predyktory w praktyce
+
+Jeśli miałbym wskazać 10 najważniejszych zmiennych:
+
+wysokość terenu
+
+wysokość względna nad rzeką
+
+odległość od cieku
+
+spadek
+
+flow accumulation
+
+TWI
+
+rząd cieku
+
+typ pokrycia terenu
+
+obecność wału
+
+utwory aluwialne
+
+🧠 Jak to ugryźć modelowo?
+
+Masz trzy opcje:
+
+🔹 1. Klasyfikacja pikselowa
+
+Target: 0 / 10% / 1% / 0,2%
+Algorytmy:
+
+Random Forest (bardzo dobry baseline)
+
+XGBoost
+
+LightGBM
+
+🔹 2. Model regresyjny (lepszy)
+
+Zamiast klasy:
+
+przewidywać wysokość zwierciadła wody
+
+albo prawdopodobieństwo zalewu
+
+🔹 3. Model hybrydowy
+
+Topografia + uproszczona hydraulika
+
+⚠️ Największy problem metodologiczny
+
+Twoja mapa zagrożenia 10/1/0,2% została wygenerowana z NMT i modelu hydraulicznego.
+
+Jeśli użyjesz:
+
+tych samych danych topograficznych
+→ model nauczy się odtwarzać istniejący model (a nie „przewidywać”).
+
+To nie jest błąd, ale:
+
+musisz uważać na overfitting przestrzenny
+
+robić spatial cross-validation (blokową)
+
+📊 Minimalny sensowny zestaw (gdyby robić to „na czysto”)
+
+NMT → pochodne (slope, TWI, flow accumulation)
+
+distance to river
+
+land cover
+
+gleby
+
+dane opadowe
+
+I już możesz zbudować bardzo solidny model.
