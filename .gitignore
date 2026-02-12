@@ -2,3 +2,12 @@
 
 *.xml
 *.gfs
+
+# .shp associated files
+*.shp
+*.cpg
+*.dbf
+*.prj
+*.sbn
+*.sbx
+*.shx
