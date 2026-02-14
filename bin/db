@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [[ $# -eq 0 ]]
+then
+    ARGS="psql -U postgres -d flood"
+else
+    ARGS=$*
+fi
+
+. bin/cf db
+
+docker compose exec -it db ${ARGS}

@@ -1,0 +1,50 @@
+name: db
+
+services:
+  db:
+    container_name: db
+    image: postgis/postgis:latest
+    profiles: [db, airflow]
+    hostname: db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: flood
+    volumes:
+      - ./config/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres-db-volume:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+    networks:
+      - flood
+
+  redis:
+    container_name: redis
+    image: redis:7.2-bookworm
+    profiles: [db, airflow]
+    hostname: redis
+    expose:
+      - 6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 30s
+      retries: 50
+      start_period: 30s
+    restart: always
+    networks:
+      - flood
+
+volumes:
+  postgres-db-volume:
+    name: postgres-db-volume
+
+networks:
+  flood:
+    external: true

@@ -11,3 +11,5 @@
 *.sbn
 *.sbx
 *.shx
+
+*.env
