@@ -1,0 +1,165 @@
+name: fme
+
+x-fme-flow-common:
+  &fme-flow-common
+  build:
+    context: .
+    dockerfile: ./docker/fme/Dockerfile
+  depends_on:
+    &fme-flow-depends-on
+    db:
+      condition: service_healthy
+  networks:
+    - flood
+
+services:
+  fme-flow-db-init:
+    container_name: fme-flow-db-init
+    image: fme-flow-db-init
+    profiles: [fme]
+    <<: *fme-flow-common
+    restart: "no"
+    environment:
+      PGSQLHOSTNAME: db
+      PGSQLPORT: 5432
+      PGSQLADMINUSER: postgres
+      PGSQLADMINPASSWORD: postgres
+      PGSQLUSERNAME: fmeflow
+      PRIMARY_PROCESS: initpgsql
+
+  fme-flow-core:
+    container_name: fme-flow-core
+    image: fme-flow-core
+    profiles: [fme]
+    <<: *fme-flow-common
+    environment:
+      PGSQLHOSTNAME: db
+      PRIMARY_PROCESS: core
+      EXTERNALHOSTNAME: ${EXTERNALHOSTNAME:-localhost}
+      EXTERNALPORT: ${EXTERNALPORT:-80}
+      WEBPROTOCOL: ${WEBPROTOCOL:-http}
+      RUNSETUP: true
+      DEBUGLEVEL: NONE
+      REDISHOSTS: redis
+      REDISPORT: 6379
+    hostname: fmeflowcore
+    restart: always
+    volumes:
+      - fme-flow:/data/fmeflowdata
+    healthcheck:
+      test: nc -z fmeflowcore 7071 || exit 1
+      interval: 10s
+      timeout: 1s
+      retries: 6
+    depends_on:
+      <<: *fme-flow-depends-on
+      fme-flow-db-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  fme-flow-websocket:
+    container_name: fme-flow-websocket
+    image: fme-flow-websocket
+    profiles: [fme]
+    <<: *fme-flow-common
+    environment:
+      PRIMARY_PROCESS: websocket
+      PGSQLHOSTNAME: db
+    volumes:
+      - fme-flow:/data/fmeflowdata
+    hostname: fmeflowwebsocket
+    restart: always
+    healthcheck:
+      test: nc -z fmeflowwebsocket 7078 || exit 1
+      interval: 10s
+      timeout: 1s
+      retries: 6
+
+  fme-flow-web:
+    container_name: fme-flow-web
+    image: fme-flow-web
+    profiles: [fme]
+    build:
+      context: .
+      dockerfile: ./docker/fme/Dockerfile.web
+    volumes:
+      - fme-flow:/data/fmeflowdata
+    environment:
+      EXTERNALHOSTNAME: ${EXTERNALHOSTNAME:-localhost}
+      EXTERNALPORT: ${EXTERNALPORT:-80}
+      WEBPROTOCOL: ${WEBPROTOCOL:-http}
+      DEBUGLEVEL: NONE
+      PGSQLHOSTNAME: db
+    hostname: fmeflowweb
+    restart: always
+    healthcheck:
+      test: wget --quiet --tries=1 --spider http://fmeflowweb:8080/ || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    depends_on:
+      - fme-flow-core
+    networks:
+      - flood
+    ports:
+      - 8080:8080
+
+  fme-flow-utility:
+    container_name: fme-flow-utility
+    image: fme-flow-utility
+    profiles: [fme]
+    build:
+      context: .
+      dockerfile: ./docker/fme/Dockerfile.engine
+    volumes:
+       - fme-flow:/data/fmeflowdata
+    restart: always
+    depends_on:
+      - fme-flow-core
+    environment:
+      - EXTERNALPORT=${EXTERNALPORT:-80}
+      - WEBPROTOCOL=${WEBPROTOCOL:-http}
+      - DEBUGLEVEL=NONE
+      - ENGINETYPE=UTILITY
+      - PGSQLHOSTNAME=db
+    # This is to prevent sick engines from generating too many core dump files. Remove this if you would like to enable core dumps by the engine
+    ulimits:
+      core:
+        hard: 0
+        soft: 0
+    networks:
+      - flood
+
+  fme-flow-engine:
+    container_name: fme-flow-engine
+    image: fme-flow-engine
+    profiles: [fme]
+    build:
+      context: .
+      dockerfile: ./docker/fme/Dockerfile.engine
+    volumes:
+       - 'fme-flow:/data/fmeflowdata'
+    restart: always
+    depends_on:
+      - fme-flow-core
+    environment:
+      - EXTERNALPORT=${EXTERNALPORT:-80}
+      - WEBPROTOCOL=${WEBPROTOCOL:-http}
+      - DEBUGLEVEL=NONE
+      - PGSQLHOSTNAME=db
+    # This is to prevent sick engines from generating too many core dump files. Remove this if you would like to enable core dumps by the engine
+    ulimits:
+      core:
+        hard: 0
+        soft: 0
+    networks:
+      - flood
+
+volumes:
+  fme-flow:
+    name: fme-flow
+
+networks:
+  flood:
+    external: true

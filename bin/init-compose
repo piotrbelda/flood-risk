@@ -1,6 +1,6 @@
 #!/bin/bash
 
-AVAILABLE_COMPOSES=(airflow db)
+AVAILABLE_COMPOSES=(airflow fme db)
 
 printf -v COMPOSE_AGG 'docker-compose.%s.yml:' "${AVAILABLE_COMPOSES[@]}"
 export COMPOSE_FILE="${COMPOSE_AGG%:}"
